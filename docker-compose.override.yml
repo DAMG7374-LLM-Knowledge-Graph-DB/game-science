@@ -1,0 +1,8 @@
+services:
+  streamlit:
+    image: python:3.9
+    command: bash -c "pip install -r /app/include/streamlit_container_requirements.txt && streamlit run --server.enableWebsocketCompression=false --server.enableCORS=false --server.enableXsrfProtection=false /app/include/chatbot3.py"
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./include:/app/include

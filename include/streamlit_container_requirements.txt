@@ -1,0 +1,7 @@
+streamlit==1.23.0
+langchain
+langchain-pinecone
+langchain-openai
+pinecone-client
+openai
+python-dotenv

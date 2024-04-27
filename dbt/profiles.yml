@@ -1,0 +1,13 @@
+cosmosDBT:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: rjyexfs-pgb56483
+      user: sumadif
+      password: PricingSNOW129!
+      role: accountadmin
+      database: transform_db
+      warehouse: transform_wh
+      schema: transform_schema_2
+      threads: 10

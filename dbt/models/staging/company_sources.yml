@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: companiesData
+    database: companies
+    schema: public
+    tables:
+      - name: companies
+
+  - name: scrappedWebsiteData
+    database: ingestion
+    schema: public
+    tables:
+      - name: COMPANY_SCRAPPED_WEB_DATA
