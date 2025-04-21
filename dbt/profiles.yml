@@ -5,7 +5,7 @@ cosmosDBT:
       type: snowflake
       account: rjyexfs-pgb56483
       user: sumadif
-      password: YourPassword
+      password: PricingSNOW129!
       role: accountadmin
       database: transform_db
       warehouse: transform_wh

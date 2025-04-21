@@ -1,8 +1,22 @@
 services:
   streamlit:
     image: python:3.9
-    command: bash -c "pip install -r /app/include/streamlit_container_requirements.txt && streamlit run --server.enableWebsocketCompression=false --server.enableCORS=false --server.enableXsrfProtection=false /app/include/chatbot3.py"
+    command: bash -c "pip install -r /app/include/streamlit_container_requirements.txt && streamlit run --server.enableWebsocketCompression=false --server.enableCORS=false --server.enableXsrfProtection=false /app/include/chatbot.py"
     ports:
       - "8501:8501"
     volumes:
       - ./include:/app/include
+    env_file:
+      - .env
+
+  scheduler:
+    volumes:
+      - ./dbt_airflow:/usr/local/airflow/dbt:rw
+
+  webserver:
+    volumes:
+      - ./dbt_airflow:/usr/local/airflow/dbt:rw
+
+  triggerer:
+    volumes:
+      - ./dbt_airflow:/usr/local/airflow/dbt:rw

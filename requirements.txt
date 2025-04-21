@@ -5,9 +5,13 @@ snowflake-connector-python
 requests
 html2text
 openai
-pinecone-client
+pinecone
 boto3
 langchain
 pypdf
 PyPDF2
 streamlit==1.23.0
+pdfkit
+neo4j
+BeautifulSoup4
+pandas
