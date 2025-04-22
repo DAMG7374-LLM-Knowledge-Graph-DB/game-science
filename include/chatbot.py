@@ -58,12 +58,39 @@ def get_node_properties_by_label():
             prop_data[label] = row["properties"]
         return prop_data
 
+import re
+
+# Example: extract all labels, relationship types, and property names from the schema texts
+def extract_tokens(schema, properties):
+    labels = set(re.findall(r':([A-Z][A-Za-z0-9_]*)', schema))  # e.g., :Movie, :Person
+    rels = set(re.findall(r'-\[:([A-Z_][A-Za-z0-9_]*)\]-', schema))  # e.g., [:ACTED_IN]
+    props = set(re.findall(r'\.([a-zA-Z_][A-Za-z0-9_]*)', properties))  # e.g., .title, .genre
+    return labels, rels, props
+
+def map_to_correct_case(user_input, labels, rels, props):
+    corrected = user_input
+
+    def replace_tokens(token_set):
+        nonlocal corrected
+        for token in token_set:
+            pattern = re.compile(r'\b' + re.escape(token.lower()) + r'\b', re.IGNORECASE)
+            corrected = pattern.sub(token, corrected)
+        return corrected
+
+    corrected = replace_tokens(labels)
+    corrected = replace_tokens(rels)
+    corrected = replace_tokens(props)
+    return corrected
+
 def translate_to_cypher(user_input, schema_text="", node_properties={}):
     properties_text = "\n".join(
         f"{label}: {', '.join(props)}"
         for label, props in node_properties.items()
     )
 
+    labels, rels, props = extract_tokens(schema_text, properties_text)
+    normalized_user_input = map_to_correct_case(user_input, labels, rels, props)
+    
     prompt = f"""
 You are translating a natural language question into a Cypher query that will be visualized as a graph.
 
@@ -72,6 +99,10 @@ You are translating a natural language question into a Cypher query that will be
 - Always return the nodes and the relationships between them in your return clause, so that they can be visualized fully.
 - Use the variables assigned to the relationships in the MATCH query in the return clause.
 - Only use the schema and properties described below to form your query.
+- Decide whether to use `=` (exact match) or `CONTAINS` (fuzzy match) based on the user's intent:
+    - If the user says "exactly", "named", "called", or quotes a value → use `=`
+    - If the user says "containing", "includes", "like", or uses general phrasing → use `CONTAINS`
+- Avoid case mismatch issues by using exact casing from the schema.
 
 **Graph Schema:**
 {schema_text}
@@ -81,7 +112,7 @@ You are translating a natural language question into a Cypher query that will be
 
 Now, translate the following question into a Cypher query:
 
-'{user_input}'
+'{normalized_user_input}'
 """
     response = client.chat.completions.create(
         model="gpt-4",
@@ -95,14 +126,15 @@ def summarize_result_in_nlp(flattened_data, original_question=""):
     sample = df.head(10).to_dict(orient='records')  # Limit size for token safety
 
     prompt = f"""
-You are a data analyst assistant. A user asked: "{original_question}".
+    Here is the result of a Cypher query based on the user's question: '{original_question}'.
 
-Here is a sample of the query result as JSON:
+    Summarize the findings in natural language in a clear, concise manner.
+    **Do not mention box art, image URLs, or any visual assets.**
+    Focus only on game names, genres, relationships, and release information.
 
-{sample}
-
-Summarize the result in plain English in 3-5 sentences. Highlight any interesting patterns, groupings, or relationships.
-"""
+    Data:
+    {sample}
+    """
 
     response = client.chat.completions.create(
         model="gpt-4",
@@ -229,7 +261,7 @@ def visualize_schema(schema_data):
 # --- STREAMLIT APP ---
 
 st.set_page_config(page_title="Neo4j NL to Cypher", layout="wide")
-st.title("🧠 Natural Language to Neo4j Cypher")
+st.title("WELCOME TO LUDOPEDIA")
 
 tabs = st.tabs(["🔍 Query Graph", "📚 Graph Schema"])
 
