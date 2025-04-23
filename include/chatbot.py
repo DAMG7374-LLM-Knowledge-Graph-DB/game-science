@@ -1,3 +1,4 @@
+import json
 import streamlit as st
 from neo4j import GraphDatabase
 from neo4j.graph import Node, Relationship, Path
@@ -267,16 +268,19 @@ tabs = st.tabs(["🔍 Query Graph", "📚 Graph Schema"])
 
 # --- TAB 1: QUERY GRAPH ---
 with tabs[0]:
+    # 1) Load schema and properties
     schema_data = get_schema_summary()
     node_properties = get_node_properties_by_label()
 
+    # 2) Build schema text for translation context
     schema_text = "\n".join(
         f"{row['from'][0]} -[:{row['rel_type']}]-> {row['to'][0]}"
-        for row in schema_data if row['from'] and row['to']
+        for row in schema_data
+        if row['from'] and row['to']
     )
 
+    # 3) User input for natural language query
     user_query = st.text_input("Ask something about your graph:")
-
     cypher_query = ""
     if user_query:
         if st.button("Translate to Cypher"):
@@ -284,6 +288,7 @@ with tabs[0]:
                 cypher_query = translate_to_cypher(user_query, schema_text, node_properties)
                 st.session_state["cypher_query"] = cypher_query
 
+    # 4) Show editable Cypher and run it
     if "cypher_query" in st.session_state:
         cypher_query = st.session_state["cypher_query"]
         st.write("### Editable Cypher Query")
@@ -296,20 +301,103 @@ with tabs[0]:
             if result:
                 st.success("Query successful!")
 
-                # Table View
-                st.write("### Results (Table View)")
-                flattened_data = [flatten_record(dict(r.items())) for r in result]
-                st.dataframe(pd.DataFrame(flattened_data))
-
-                # Graph Visualization
+                # 5) Graph Visualization
                 st.write("### Graph Visualization")
                 html_path = visualize_graph(result)
                 if html_path:
                     components.html(open(html_path, 'r').read(), height=600)
                 else:
                     st.warning("⚠️ No nodes or relationships found to visualize.")
-                    
-                # NLP Summary
+
+                # 6) Table View
+                st.write("### Results (Table View)")
+                flattened_data = [flatten_record(dict(r.items())) for r in result]
+                st.dataframe(pd.DataFrame(flattened_data))
+
+                
+                records = []
+                seen = set()
+
+                for row in flattened_data:
+                    # Look at every column in the row
+                    for col, val in row.items():
+                        # Skip if empty
+                        if not val:
+                            continue
+
+                        # Parse JSON string into dict if necessary
+                        try:
+                            blob = val if isinstance(val, dict) else json.loads(val)
+                        except (ValueError, TypeError):
+                            continue
+
+                        # Only consider blobs that look like a game
+                        if not isinstance(blob, dict):
+                            continue
+                        if "name" not in blob or "box_art_url" not in blob:
+                            continue
+
+                        # Build thumbnail URL
+                        name = blob["name"]
+                        url_tpl = blob["box_art_url"]
+                        thumb_url = url_tpl.replace("{width}", "150").replace("{height}", "200")
+
+                        # De‑dupe on (name, thumb_url)
+                        key = (name, thumb_url)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+
+                        records.append({
+                            "name": name,
+                            "thumb": thumb_url
+                        })
+                # 7) Tile/Grid View (Netflix-style)
+                st.write("### 🎞 Games")
+                cards_html = ""
+                for rec in records:
+                    cards_html += f"""
+                    <div class="card">
+                        <img src="{rec['thumb']}" alt="{rec['name']}" />
+                        <div class="info"><h4>{rec['name']}</h4></div>
+                    </div>
+                    """
+
+                full_html = f"""
+                <html><head>
+                <style>
+                    .grid-container {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                    gap: 1rem;
+                    padding: 1rem 0;
+                    }}
+                    .card {{
+                    position: relative;
+                    overflow: hidden;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    }}
+                    .card img {{ width: 100%; display: block; }}
+                    .info {{
+                    position: absolute;
+                    bottom: 0;
+                    background: rgba(0,0,0,0.6);
+                    color: #fff;
+                    width: 100%;
+                    padding: 0.5rem;
+                    text-align: center;
+                    }}
+                </style>
+                </head><body>
+                <div class="grid-container">
+                    {cards_html}
+                </div>
+                </body></html>
+                """
+
+                components.html(full_html, height=600, scrolling=True)
+                                # 8) NLP Summary
                 with st.spinner("Summarizing results..."):
                     summary = summarize_result_in_nlp(flattened_data, original_question=user_query)
                     st.write("### 📝 Summary")

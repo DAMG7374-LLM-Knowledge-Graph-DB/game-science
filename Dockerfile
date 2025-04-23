@@ -12,8 +12,8 @@ RUN python -m venv dbt_venv && source dbt_venv/bin/activate && pip install --no-
 USER root
 
 # Install wkhtmltopdf and xvfb
-RUN apt-get update && apt-get install -y wkhtmltopdf xvfb \
-    && rm -rf /var/lib/apt/lists/*
+#RUN apt-get update && apt-get install -y wkhtmltopdf xvfb \
+#    && rm -rf /var/lib/apt/lists/*
 
 # Switch back to airflow user
 USER airflow
